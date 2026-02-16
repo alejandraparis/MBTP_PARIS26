@@ -1,0 +1,77 @@
+managed ;//implementation in class zbp_cd_i_travels_m_ap unique;
+//strict ( 2 ); //Uncomment this line in order to enable strict mode 2. The strict mode has two variants (strict(1), strict(2)) and is prerequisite to be future proof regarding syntax and to be able to release your BO.
+
+define behavior for ZCD_I_TRAVELS_M_AP alias Travel
+implementation in class zbp_travel_ap  unique
+persistent table ztb_travel_m_ap
+lock master
+authorization master ( instance )
+etag master last_changed_at
+{
+
+  field ( readonly ) last_changed_at, last_changed_by, created_at, created_by;
+  field ( mandatory) agency_id, overall_status, booking_fee, currency_code;
+  field ( features : instance ) travel_id;
+
+  mapping for ztb_travel_m_ap corresponding;
+
+  create;
+  update;
+  delete;
+
+  action ( features : instance ) acceptTravel result [1] $self;
+  action ( features : instance ) rejectTravel result [1] $self;
+
+  action createTravelbyTemplate result [1] $self;
+
+  validation validateCustomer on save { field customer_id; }
+  validation validateDate on save { field begin_date, end_date; }
+  validation validateStatus on save { field overall_status; }
+
+  association _Booking { create; }
+}
+
+define behavior for ZCD_I_BOOKING_M_AP alias Booking
+implementation in class zbp_booking_ap unique
+persistent table ztb_booking_m_ap
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master last_changed_at
+{
+  field ( mandatory) carrier_id, connection_id, flight_date, booking_status;
+  field ( readonly ) travel_id, booking_id;
+
+  mapping for ztb_booking_m_ap corresponding;
+
+  update;
+  delete;
+
+  validation validateStatus on save { field booking_status; }
+
+  determination calculateTotalFlightPrice on modify { field flight_price, currency_code; }
+
+  association _Travel;
+  association _BookSupplement { create; }
+}
+
+define behavior for ZCD_I_BOOKSUP_M_AP alias Supplement
+implementation in class zbp_supplement_ap unique
+//persistent table ztb_booksup_m_ap
+with unmanaged save
+lock dependent by _Travel
+authorization dependent by _Travel
+etag master last_changed_at
+{
+  field ( mandatory) supplement_id, price;
+  field ( readonly ) travel_id, booking_id, booking_supplement_id;
+
+  mapping for ztb_booksup_m_ap corresponding;
+
+  update;
+  delete;
+
+  determination calculateTotalSupplimPrice on modify { field price, currency_code; }
+
+  association _Travel;
+  association _Booking;
+}
